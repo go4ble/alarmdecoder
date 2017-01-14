@@ -24,6 +24,7 @@ class AlarmDecoder(object):
     # High-level Events
     on_arm = event.Event("This event is called when the panel is armed.\n\n**Callback definition:** *def callback(device)*")
     on_disarm = event.Event("This event is called when the panel is disarmed.\n\n**Callback definition:** *def callback(device)*")
+    on_chime_changed = event.Event("This event is called when chime mode toggles.\n\n**Callback definition:** *def callback(device, status)*")
     on_power_changed = event.Event("This event is called when panel power switches between AC and DC.\n\n**Callback definition:** *def callback(device, status)*")
     on_alarm = event.Event("This event is called when the alarm is triggered.\n\n**Callback definition:** *def callback(device, zone)*")
     on_alarm_restored = event.Event("This event is called when the alarm stops sounding.\n\n**Callback definition:** *def callback(device, zone)*")
@@ -98,6 +99,7 @@ class AlarmDecoder(object):
 
         self._battery_timeout = AlarmDecoder.BATTERY_TIMEOUT
         self._fire_timeout = AlarmDecoder.FIRE_TIMEOUT
+        self._chime_status = None
         self._power_status = None
         self._alarm_status = None
         self._bypass_status = None
@@ -486,11 +488,29 @@ class AlarmDecoder(object):
             self._update_armed_status(message)
             self._update_battery_status(message)
             self._update_fire_status(message)
+            self._update_chime_status(message)
 
         elif isinstance(message, ExpanderMessage):
             self._update_expander_status(message)
 
         self._update_zone_tracker(message)
+
+    def _update_chime_status(self, message):
+        """
+        Uses the provided message to update the chime status.
+
+        :param message: message to use to update
+        :type message: :py:class:`~alarmdecoder.message.Message`
+
+        :returns: bool indicating the new status
+        """
+        if message.chime_on != self._chime_status:
+            self._chime_status, old_status = message.chime_status, self._chime_status
+
+            if old_status is not None:
+                self.on_chime_changed(status=self._chime_status)
+
+        return self._chime_status
 
     def _update_power_status(self, message):
         """
